@@ -36,7 +36,7 @@ public class Review {
 
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    private User userName;
+    private User user;
 
     @Column(nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
