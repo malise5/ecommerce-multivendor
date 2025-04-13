@@ -13,8 +13,8 @@ on:
         default: 'staging'
         type: choice
         options:
-        - staging
-        - production
+          - staging
+          - production
       debug_enabled:
         description: 'Run the workflow with debug logging'
         required: false
@@ -30,7 +30,7 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
@@ -47,61 +47,62 @@ jobs:
           --health-retries 5
 
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up JDK
-      uses: actions/setup-java@v3
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'temurin'
-        cache: maven
-    
-    - name: Debug Information
-      if: ${{ inputs.debug_enabled }}
-      run: |
-        echo "Java Version:"
-        java -version
-        echo "Maven Version:"
-        ./mvnw --version
-        echo "PostgreSQL Connection Info:"
-        echo "URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}"
-        echo "Current Directory:"
-        pwd
-        echo "Directory Contents:"
-        ls -la
-    
-    - name: Build and Test
-      run: |
-        chmod +x mvnw
-        ./mvnw -B package
-      env:
-        SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
-        SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
-        SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-    
-    - name: List files in target directory (debug)
-      run: ls -la target
-    
-    - name: Upload artifact
-      uses: actions/upload-artifact@v3.0.0
-      with:
-        name: app-jar
-        path: target/*.jar
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Debug Information
+        if: ${{ inputs.debug_enabled }}
+        run: |
+          echo "Java Version:"
+          java -version
+          echo "Maven Version:"
+          ./mvnw --version
+          echo "PostgreSQL Connection Info:"
+          echo "URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}"
+          echo "Current Directory:"
+          pwd
+          echo "Directory Contents:"
+          ls -la
+
+      - name: Build and Test
+        run: |
+          chmod +x mvnw
+          ./mvnw -B package
+        env:
+          SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
+          SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
+          SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+
+      - name: List files in target directory (debug)
+        run: ls -la target
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3.0.0
+        with:
+          name: app-jar
+          path: target/*.jar
 
   deploy:
     needs: build-and-test
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
-    
-    steps:
-    - uses: actions/download-artifact@v2
-      with:
-        name: app-jar
-        path: target
 
-    - name: Deploy
-      run: echo "Deploying to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} environment"
-      env:
-        SPRING_PROFILES_ACTIVE: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: app-jar
+          path: target
+
+      - name: Deploy to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} environment
+        run: |
+          echo "Deploying to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} environment"
+        env:
+          SPRING_PROFILES_ACTIVE: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
