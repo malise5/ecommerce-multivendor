@@ -70,12 +70,18 @@ jobs:
           echo "Directory Contents:"
           ls -la
 
-      - name: Build and Test
+      - name: Build Project
         run: |
           chmod +x mvnw
-          ./mvnw -B package
+          ./mvnw -B package -DskipTests
         env:
           SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
+
+      - name: Run Tests
+        run: |
+          ./mvnw test
+        env:
+          SPRING_PROFILES_ACTIVE: test
           SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
           SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
           SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
