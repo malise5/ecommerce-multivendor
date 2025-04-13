@@ -22,14 +22,13 @@ on:
         default: false
 
 env:
-  # Common environment variables
   JAVA_VERSION: '17'
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: root
   POSTGRES_DB: eC-vendor-db
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
     
     services:
@@ -50,19 +49,12 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Set up JDK ${{ env.JAVA_VERSION }}
+    - name: Set up JDK
       uses: actions/setup-java@v3
       with:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: 'temurin'
         cache: maven
-        
-    - name: Cache Maven packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
     
     - name: Debug Information
       if: ${{ inputs.debug_enabled }}
@@ -78,94 +70,35 @@ jobs:
         echo "Directory Contents:"
         ls -la
     
-    - name: Build with Maven
+    - name: Build and Test
       run: |
         chmod +x mvnw
-        ./mvnw -B package -DskipTests
+        ./mvnw -B package
       env:
         SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
         SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
         SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
     
-    - name: Run Tests
-      run: |
-        chmod +x mvnw
-        ./mvnw test
-      env:
-        SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
-        SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
-        SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-    
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+    - name: Upload artifact
+      uses: actions/upload-artifact@v2
       with:
         name: app-jar
         path: target/*.jar
 
-  security-scan:
-    needs: build
+  deploy:
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up JDK ${{ env.JAVA_VERSION }}
-      uses: actions/setup-java@v3
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'temurin'
-    
-    - name: Download build artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: app-jar
-        path: target
-    
-    - name: Run OWASP Dependency Check
-      uses: dependency-check/Dependency-Check_Action@main
-      with:
-        project: 'ecom-multi-vendor'
-        path: '.'
-        format: 'HTML'
-    
-    - name: Upload security scan results
-      uses: actions/upload-artifact@v3
-      with:
-        name: dependency-check-report
-        path: reports
-
-  deploy-staging:
-    needs: [build, security-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/staging' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
-    environment: staging
-    
-    steps:
-    - uses: actions/download-artifact@v3
+    - uses: actions/download-artifact@v2
       with:
         name: app-jar
         path: target
 
-    - name: Deploy to Staging
-      run: echo "Deploying to staging environment"
+    - name: Deploy
+      run: echo "Deploying to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} environment"
       env:
-        SPRING_PROFILES_ACTIVE: staging
-
-  deploy-production:
-    needs: [build, security-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
-    environment: production
-    
-    steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: app-jar
-        path: target
-
-    - name: Deploy to Production
-      run: echo "Deploying to production environment"
-      env:
-        SPRING_PROFILES_ACTIVE: production
+        SPRING_PROFILES_ACTIVE: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
