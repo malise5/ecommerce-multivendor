@@ -80,8 +80,11 @@ jobs:
         SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
         SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
     
+    - name: List files in target directory (debug)
+      run: ls -la target
+    
     - name: Upload artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3.0.0
       with:
         name: app-jar
         path: target/*.jar
