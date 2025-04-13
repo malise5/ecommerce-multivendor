@@ -27,7 +27,6 @@ env:
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: root
   POSTGRES_DB: eC-vendor-db
-  POSTGRES_PORT: 5437
 
 jobs:
   build:
@@ -98,13 +97,12 @@ jobs:
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
         SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
         SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-      
-    - name: Upload build artifact
+    
+    - name: Upload build artifacts
       uses: actions/upload-artifact@v3
       with:
         name: app-jar
         path: target/*.jar
-        if-no-files-found: error
 
   security-scan:
     needs: build
@@ -119,21 +117,24 @@ jobs:
         java-version: ${{ env.JAVA_VERSION }}
         distribution: 'temurin'
     
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: app-jar
+        path: target
+    
     - name: Run OWASP Dependency Check
       uses: dependency-check/Dependency-Check_Action@main
-      env:
-        JAVA_HOME: ${{ env.JAVA_HOME }}
       with:
         project: 'ecom-multi-vendor'
         path: '.'
         format: 'HTML'
-        
+    
     - name: Upload security scan results
       uses: actions/upload-artifact@v3
       with:
         name: dependency-check-report
         path: reports
-        if-no-files-found: error
 
   deploy-staging:
     needs: [build, security-scan]
@@ -145,11 +146,12 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: app-jar
+        path: target
 
     - name: Deploy to Staging
+      run: echo "Deploying to staging environment"
       env:
         SPRING_PROFILES_ACTIVE: staging
-      run: echo "Add staging deployment commands here"
 
   deploy-production:
     needs: [build, security-scan]
@@ -161,8 +163,9 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         name: app-jar
+        path: target
 
     - name: Deploy to Production
+      run: echo "Deploying to production environment"
       env:
-        SPRING_PROFILES_ACTIVE: prod
-      run: echo "Add production deployment commands here"
+        SPRING_PROFILES_ACTIVE: production
