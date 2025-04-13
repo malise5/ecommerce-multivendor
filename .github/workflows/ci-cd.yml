@@ -37,11 +37,11 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: eC-vendor-db
         ports:
-          - ${{ env.POSTGRES_PORT }}:5432
+          - 5437:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -73,7 +73,7 @@ jobs:
         echo "Maven Version:"
         ./mvnw --version
         echo "PostgreSQL Connection Info:"
-        echo "URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}"
+        echo "URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}"
         echo "Current Directory:"
         pwd
         echo "Directory Contents:"
@@ -85,7 +85,7 @@ jobs:
         ./mvnw -B package -DskipTests
       env:
         SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
         SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
         SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
     
@@ -95,7 +95,7 @@ jobs:
         ./mvnw test
       env:
         SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
         SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
         SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
       
