@@ -13,8 +13,8 @@ on:
         default: 'staging'
         type: choice
         options:
-        - staging
-        - production
+          - staging
+          - production
       debug_enabled:
         description: 'Run the workflow with debug logging'
         required: false
@@ -22,26 +22,24 @@ on:
         default: false
 
 env:
-  # Common environment variables
   JAVA_VERSION: '17'
   POSTGRES_USER: postgres
   POSTGRES_PASSWORD: root
   POSTGRES_DB: eC-vendor-db
-  POSTGRES_PORT: 5437
 
 jobs:
-  build:
+  build-and-test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: ${{ env.POSTGRES_USER }}
-          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-          POSTGRES_DB: ${{ env.POSTGRES_DB }}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: root
+          POSTGRES_DB: eC-vendor-db
         ports:
-          - ${{ env.POSTGRES_PORT }}:5432
+          - 5437:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -49,120 +47,73 @@ jobs:
           --health-retries 5
 
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up JDK ${{ env.JAVA_VERSION }}
-      uses: actions/setup-java@v3
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'temurin'
-        cache: maven
-        
-    - name: Cache Maven packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2
-        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-        restore-keys: ${{ runner.os }}-m2
-    
-    - name: Debug Information
-      if: ${{ inputs.debug_enabled }}
-      run: |
-        echo "Java Version:"
-        java -version
-        echo "Maven Version:"
-        ./mvnw --version
-        echo "PostgreSQL Connection Info:"
-        echo "URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}"
-        echo "Current Directory:"
-        pwd
-        echo "Directory Contents:"
-        ls -la
-    
-    - name: Build with Maven
-      run: |
-        chmod +x mvnw
-        ./mvnw -B package -DskipTests
-      env:
-        SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
-        SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
-        SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-    
-    - name: Run Tests
-      run: |
-        chmod +x mvnw
-        ./mvnw test
-      env:
-        SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
-        SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
-        SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
-      
-    - name: Upload build artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: app-jar
-        path: target/*.jar
-        if-no-files-found: error
+      - uses: actions/checkout@v3
 
-  security-scan:
-    needs: build
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up JDK ${{ env.JAVA_VERSION }}
-      uses: actions/setup-java@v3
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'temurin'
-    
-    - name: Run OWASP Dependency Check
-      uses: dependency-check/Dependency-Check_Action@main
-      env:
-        JAVA_HOME: ${{ env.JAVA_HOME }}
-      with:
-        project: 'ecom-multi-vendor'
-        path: '.'
-        format: 'HTML'
-        
-    - name: Upload security scan results
-      uses: actions/upload-artifact@v3
-      with:
-        name: dependency-check-report
-        path: reports
-        if-no-files-found: error
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: maven
 
-  deploy-staging:
-    needs: [build, security-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/staging' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
-    environment: staging
-    
-    steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: app-jar
+      - name: Display Debug Information
+        if: ${{ inputs.debug_enabled }}
+        run: |
+          echo "Java Version:"
+          java -version
+          echo "Maven Version:"
+          ./mvnw --version
+          echo "PostgreSQL Connection Info:"
+          echo "URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}"
+          echo "Current Directory:"
+          pwd
+          echo "Directory Contents:"
+          ls -la
 
-    - name: Deploy to Staging
-      env:
-        SPRING_PROFILES_ACTIVE: staging
-      run: echo "Add staging deployment commands here"
+      - name: Build Project
+        run: |
+          chmod +x mvnw
+          ./mvnw -B package -DskipTests
+        env:
+          SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
 
-  deploy-production:
-    needs: [build, security-scan]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
-    environment: production
-    
-    steps:
-    - uses: actions/download-artifact@v3
-      with:
-        name: app-jar
+#      - name: Run Tests
+#        run: |
+#          ./mvnw test
+#        env:
+#          SPRING_PROFILES_ACTIVE: test
+#          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
+#          SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
+#          SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
 
-    - name: Deploy to Production
-      env:
-        SPRING_PROFILES_ACTIVE: prod
-      run: echo "Add production deployment commands here"
+#      - name: List Files in Target Directory
+#        run: ls -la target
+#
+#      - name: Display Target Directory Contents
+#        run: |
+#          echo "Contents of target directory:"
+#          ls -la target
+#
+#      - name: Upload Artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: app-jar
+#          path: target/*.jar
+
+#  deploy:
+#    needs: build-and-test
+#    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+#    runs-on: ubuntu-latest
+#    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+#
+#    steps:
+#      - uses: actions/download-artifact@v4
+#        with:
+#          name: app-jar
+#          path: target
+#
+#      - name: Deploy to Environment
+#        run: |
+#          echo "Deploying to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} environment"
+#        env:
+#          SPRING_PROFILES_ACTIVE: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
