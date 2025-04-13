@@ -1,10 +1,12 @@
 package com.ecom.model;
 
-
 import com.ecom.domain.AccountStatus;
 import com.ecom.domain.USER_ROLE;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -26,6 +28,9 @@ public class Seller {
 
     private String phoneNumber;
 
+    @OneToMany(mappedBy = "seller", cascade = CascadeType.ALL)
+    private List<Product> products = new ArrayList<>();
+
     @Embedded
     private BusinessDetails businessDetails = new BusinessDetails();
 
@@ -42,7 +47,5 @@ public class Seller {
     private boolean isEmailVerified = false;
 
     private AccountStatus accountStatus = AccountStatus.PENDING_VERIFICATION;
-
-
 
 }

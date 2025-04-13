@@ -22,4 +22,8 @@ public class Address {
     private String state;
     private String pinCode;
     private String phoneNumber;
+
+    @ManyToOne
+    @JoinColumn(name = "user_id") // This specifies the foreign key column in the Address table.
+    private User user;
 }

@@ -21,7 +21,8 @@ public class Transaction {
     private User customer;
 
     @OneToOne
-    private Order orderId;
+    @JoinColumn(name = "order_id", referencedColumnName = "id")
+    private Order order;
 
     @ManyToOne
     private Seller seller;
