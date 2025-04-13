@@ -5,6 +5,21 @@ on:
     branches: [ "main", "staging", "development" ]
   pull_request:
     branches: [ "main", "staging", "development" ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to run tests against'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+        - staging
+        - production
+      debug_enabled:
+        description: 'Run the workflow with debug logging'
+        required: false
+        type: boolean
+        default: false
 
 env:
   # Common environment variables
@@ -50,12 +65,26 @@ jobs:
         key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
         restore-keys: ${{ runner.os }}-m2
     
+    - name: Debug Information
+      if: ${{ inputs.debug_enabled }}
+      run: |
+        echo "Java Version:"
+        java -version
+        echo "Maven Version:"
+        ./mvnw --version
+        echo "PostgreSQL Connection Info:"
+        echo "URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}"
+        echo "Current Directory:"
+        pwd
+        echo "Directory Contents:"
+        ls -la
+    
     - name: Build with Maven
       run: |
         chmod +x mvnw
         ./mvnw -B package -DskipTests
       env:
-        SPRING_PROFILES_ACTIVE: staging
+        SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
         SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
         SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
@@ -65,7 +94,7 @@ jobs:
         chmod +x mvnw
         ./mvnw test
       env:
-        SPRING_PROFILES_ACTIVE: staging
+        SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
         SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
         SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
@@ -75,6 +104,7 @@ jobs:
       with:
         name: app-jar
         path: target/*.jar
+        if-no-files-found: error
 
   security-scan:
     needs: build
@@ -103,11 +133,12 @@ jobs:
       with:
         name: dependency-check-report
         path: reports
+        if-no-files-found: error
 
   deploy-staging:
     needs: [build, security-scan]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/staging'
+    if: github.ref == 'refs/heads/staging' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     environment: staging
     
     steps:
@@ -123,7 +154,7 @@ jobs:
   deploy-production:
     needs: [build, security-scan]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     environment: production
     
     steps:
