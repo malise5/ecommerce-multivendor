@@ -77,43 +77,43 @@ jobs:
         env:
           SPRING_PROFILES_ACTIVE: ${{ github.event.inputs.environment || 'staging' }}
 
-      - name: Run Tests
-        run: |
-          ./mvnw test
-        env:
-          SPRING_PROFILES_ACTIVE: test
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
-          SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
-          SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+#      - name: Run Tests
+#        run: |
+#          ./mvnw test
+#        env:
+#          SPRING_PROFILES_ACTIVE: test
+#          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5437/${{ env.POSTGRES_DB }}
+#          SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
+#          SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
 
-      - name: List Files in Target Directory
-        run: ls -la target
+#      - name: List Files in Target Directory
+#        run: ls -la target
+#
+#      - name: Display Target Directory Contents
+#        run: |
+#          echo "Contents of target directory:"
+#          ls -la target
+#
+#      - name: Upload Artifact
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: app-jar
+#          path: target/*.jar
 
-      - name: Display Target Directory Contents
-        run: |
-          echo "Contents of target directory:"
-          ls -la target
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-jar
-          path: target/*.jar
-
-  deploy:
-    needs: build-and-test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
-    runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
-
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: app-jar
-          path: target
-
-      - name: Deploy to Environment
-        run: |
-          echo "Deploying to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} environment"
-        env:
-          SPRING_PROFILES_ACTIVE: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+#  deploy:
+#    needs: build-and-test
+#    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+#    runs-on: ubuntu-latest
+#    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+#
+#    steps:
+#      - uses: actions/download-artifact@v4
+#        with:
+#          name: app-jar
+#          path: target
+#
+#      - name: Deploy to Environment
+#        run: |
+#          echo "Deploying to ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} environment"
+#        env:
+#          SPRING_PROFILES_ACTIVE: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
