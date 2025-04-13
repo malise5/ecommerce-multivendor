@@ -4,6 +4,36 @@
 
 A multi-vendor e-commerce platform built with Spring Boot.
 
+## Development Workflow
+
+1. Always work on the `development` branch for new features:
+   ```bash
+   git checkout development
+   ```
+
+2. Create feature branches from development:
+   ```bash
+   git checkout -b feature/your-feature-name
+   ```
+
+3. After testing locally, merge back to development:
+   ```bash
+   git checkout development
+   git merge feature/your-feature-name
+   ```
+
+4. For releases, merge to staging for testing:
+   ```bash
+   git checkout staging
+   git merge development
+   ```
+
+5. Once tested in staging, merge to main for production:
+   ```bash
+   git checkout main
+   git merge staging
+   ```
+
 ## CI/CD Pipeline
 
 The project uses GitHub Actions for continuous integration and deployment:
