@@ -1,6 +1,6 @@
 package com.ecom.model;
 
-import com.ecom.domain.HomeCategorySection;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -13,16 +13,9 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HomeCategory {
+public class Deal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    private String name;
-    private String image;
-    private String categoryId;
-
-    private HomeCategorySection section;
-
 }
