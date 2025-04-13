@@ -51,15 +51,21 @@ jobs:
         restore-keys: ${{ runner.os }}-m2
     
     - name: Build with Maven
-      run: mvn -B package --file pom.xml
+      run: |
+        chmod +x mvnw
+        ./mvnw -B package -DskipTests
       env:
+        SPRING_PROFILES_ACTIVE: staging
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
         SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
         SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
     
     - name: Run Tests
-      run: mvn test
+      run: |
+        chmod +x mvnw
+        ./mvnw test
       env:
+        SPRING_PROFILES_ACTIVE: staging
         SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
         SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
         SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
@@ -77,8 +83,16 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{ env.JAVA_VERSION }}
+        distribution: 'temurin'
+    
     - name: Run OWASP Dependency Check
       uses: dependency-check/Dependency-Check_Action@main
+      env:
+        JAVA_HOME: ${{ env.JAVA_HOME }}
       with:
         project: 'ecom-multi-vendor'
         path: '.'
