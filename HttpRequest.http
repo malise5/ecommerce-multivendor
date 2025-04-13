@@ -1,0 +1,11 @@
+
+### POST request to example server
+POST http://localhost:8080/api/auth/signup
+Accept: application/json
+Content-Type: application/json
+
+{
+    "fullname": "test",
+    "email": "test@gmail.com"
+}
+
