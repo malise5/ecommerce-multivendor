@@ -2,24 +2,31 @@ name: Java CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "staging", "development" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "staging", "development" ]
+
+env:
+  # Common environment variables
+  JAVA_VERSION: '17'
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: root
+  POSTGRES_DB: eC-vendor-db
+  POSTGRES_PORT: 5437
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     services:
-      # PostgreSQL service container
       postgres:
         image: postgres:15
         env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: ecommerce_db
+          POSTGRES_USER: ${{ env.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+          POSTGRES_DB: ${{ env.POSTGRES_DB }}
         ports:
-          - 5432:5432
+          - ${{ env.POSTGRES_PORT }}:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -29,10 +36,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     
-    - name: Set up JDK 17
+    - name: Set up JDK ${{ env.JAVA_VERSION }}
       uses: actions/setup-java@v3
       with:
-        java-version: '17'
+        java-version: ${{ env.JAVA_VERSION }}
         distribution: 'temurin'
         cache: maven
         
@@ -46,16 +53,16 @@ jobs:
     - name: Build with Maven
       run: mvn -B package --file pom.xml
       env:
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ecommerce_db
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: postgres
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
+        SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
+        SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
     
     - name: Run Tests
       run: mvn test
       env:
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ecommerce_db
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: postgres
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:${{ env.POSTGRES_PORT }}/${{ env.POSTGRES_DB }}
+        SPRING_DATASOURCE_USERNAME: ${{ env.POSTGRES_USER }}
+        SPRING_DATASOURCE_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
       
     - name: Upload build artifact
       uses: actions/upload-artifact@v3
@@ -83,18 +90,34 @@ jobs:
         name: dependency-check-report
         path: reports
 
-  # Uncomment when ready for deployment
-  # deploy:
-  #   needs: [build, security-scan]
-  #   runs-on: ubuntu-latest
-  #   if: github.ref == 'refs/heads/main' # Only deploy from main branch
+  deploy-staging:
+    needs: [build, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/staging'
+    environment: staging
     
-  #   steps:
-  #   - uses: actions/download-artifact@v3
-  #     with:
-  #       name: app-jar
-        
-  #   - name: Deploy to production
-  #     # Add your deployment steps here
-  #     # This could be deploying to AWS, Google Cloud, or any other platform
-  #     run: echo "Add deployment commands here"
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: app-jar
+
+    - name: Deploy to Staging
+      env:
+        SPRING_PROFILES_ACTIVE: staging
+      run: echo "Add staging deployment commands here"
+
+  deploy-production:
+    needs: [build, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        name: app-jar
+
+    - name: Deploy to Production
+      env:
+        SPRING_PROFILES_ACTIVE: prod
+      run: echo "Add production deployment commands here"
