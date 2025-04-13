@@ -1,0 +1,87 @@
+name: Java CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    services:
+      # Add MySQL service container
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: ecommerce_db
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: maven
+        
+    - name: Cache Maven packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+    
+    - name: Build with Maven
+      run: mvn -B package --file pom.xml
+    
+    - name: Run Tests
+      run: mvn test
+      
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: app-jar
+        path: target/*.jar
+
+  security-scan:
+    needs: build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run OWASP Dependency Check
+      uses: dependency-check/Dependency-Check_Action@main
+      with:
+        project: 'ecom-multi-vendor'
+        path: '.'
+        format: 'HTML'
+        
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      with:
+        name: dependency-check-report
+        path: reports
+
+  # Uncomment when ready for deployment
+  # deploy:
+  #   needs: [build, security-scan]
+  #   runs-on: ubuntu-latest
+  #   if: github.ref == 'refs/heads/main' # Only deploy from main branch
+    
+  #   steps:
+  #   - uses: actions/download-artifact@v3
+  #     with:
+  #       name: app-jar
+        
+  #   - name: Deploy to production
+  #     # Add your deployment steps here
+  #     # This could be deploying to AWS, Google Cloud, or any other platform
+  #     run: echo "Add deployment commands here"
